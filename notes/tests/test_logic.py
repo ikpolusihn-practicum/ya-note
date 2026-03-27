@@ -25,7 +25,7 @@ class TestNote(TestCase):
 
         cls.login_url = reverse('users:login')
 
-    def test_display_note_by_owner(self):
+    def test_display_note_by_author(self):
         self.auth_client.force_login(self.user_1)
         url = reverse('notes:detail', args=(self.notes.slug,))
         response = self.auth_client.get(url)
@@ -48,11 +48,22 @@ class TestNote(TestCase):
         redirect_url = f'{self.login_url}?next={url}'
         self.assertRedirects(response, redirect_url)
 
-    def test_delete_note_by_owner(self):
-        ...
+    def test_delete_note_by_author(self):
+        self.auth_client.force_login(self.user_1)
+
+        notes_count = Note.objects.filter(author=self.user_1).count()
+        self.assertEqual(notes_count, 1)
+
+        url = reverse('notes:delete', args=(self.notes.slug,))
+        response = self.auth_client.post(url)
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+
+        redirect_url = reverse('notes:success')
+        self.assertRedirects(response, redirect_url)
+
+        notes_count = Note.objects.filter(author=self.user_1).count()
+        self.assertEqual(notes_count, 0)
 
     def test_edit_note_by_other_user(self):
         ...
 
-    def test_delete_note_by_other_user(self):
-        ...
