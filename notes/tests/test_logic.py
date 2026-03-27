@@ -64,6 +64,19 @@ class TestNote(TestCase):
         notes_count = Note.objects.filter(author=self.user_1).count()
         self.assertEqual(notes_count, 0)
 
+    def test_delete_note_by_other_user(self):
+        self.auth_client.force_login(self.user_2)
+
+        notes_count = Note.objects.filter(author=self.user_1).count()
+        self.assertEqual(notes_count, 1)
+
+        url = reverse('notes:delete', args=(self.notes.slug,))
+        response = self.auth_client.post(url)
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
+
+        notes_count = Note.objects.filter(author=self.user_1).count()
+        self.assertEqual(notes_count, 1)
+
     def test_edit_note_by_other_user(self):
         ...
 
