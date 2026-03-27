@@ -83,7 +83,7 @@ class TestRoutes(TestCase):
                 response = self.client.get(url)
                 self.assertEqual(response.status_code, exp_result)
 
-    def test_notes_page_unauthorized_user_redirect(self):
+    def test_unauthorized_user_redirect(self):
 
         test_sets = (
             {
