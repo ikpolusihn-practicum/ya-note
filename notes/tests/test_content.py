@@ -6,6 +6,7 @@ from notes.models import Note
 
 User = get_user_model()
 
+
 class TestNotesList(TestCase):
 
     @classmethod
@@ -74,6 +75,3 @@ class TestNotesList(TestCase):
         notes_count = object_list.count()
 
         self.assertEqual(notes_count, 0)
-
-    def test_form_exists(self):
-        ...
