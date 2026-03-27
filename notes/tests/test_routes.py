@@ -30,6 +30,10 @@ class TestRoutes(TestCase):
                 'url_name': 'notes:add',
                 'exp_result': HTTPStatus.OK,
             },
+            {
+                'url_name': 'users:logout',
+                'exp_result': HTTPStatus.METHOD_NOT_ALLOWED,
+            },
         )
 
         for test_set in test_sets:
@@ -55,6 +59,18 @@ class TestRoutes(TestCase):
             {
                 'url_name': 'notes:add',
                 'exp_result': HTTPStatus.FOUND,
+            },
+            {
+                'url_name': 'users:login',
+                'exp_result': HTTPStatus.OK,
+            },
+            {
+                'url_name': 'users:signup',
+                'exp_result': HTTPStatus.OK,
+            },
+            {
+                'url_name': 'users:logout',
+                'exp_result': HTTPStatus.METHOD_NOT_ALLOWED,
             },
         )
 
