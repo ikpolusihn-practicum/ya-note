@@ -77,6 +77,16 @@ class TestNote(TestCase):
         notes_count = Note.objects.filter(author=self.user_1).count()
         self.assertEqual(notes_count, 1)
 
-    def test_edit_note_by_other_user(self):
-        ...
+    def test_delete_note_by_unauthorised_user(self):
+        notes_count = Note.objects.filter(author=self.user_1).count()
+        self.assertEqual(notes_count, 1)
 
+        url = reverse('notes:delete', args=(self.notes.slug,))
+        response = self.auth_client.post(url)
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+
+        redirect_url = f'{self.login_url}?next={url}'
+        self.assertRedirects(response, redirect_url)
+
+        notes_count = Note.objects.filter(author=self.user_1).count()
+        self.assertEqual(notes_count, 1)
