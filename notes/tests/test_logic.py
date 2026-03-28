@@ -124,7 +124,43 @@ class TestNote(TestCase):
         )
 
     def update_note_by_other_user(self):
-        ...
+        self.auth_client.force_login(self.user_2)
+        url = reverse('notes:edit', args=(self.notes.slug,))
+        response = self.auth_client.get(url)
+
+        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN)
+
+        new_data = {
+            'title': 'new_title',
+            'text': 'new_text',
+            'slug': 'new_slug',
+        }
+
+        response = self.auth_client.post(
+            'notes:edit',
+            new_data,
+        )
+
+        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN)
 
     def update_note_by_unauthorized_user(self):
-        ...
+        url = reverse('notes:edit', args=(self.notes.slug,))
+        response = self.auth_client.get(url)
+
+        redirect_url = f'{self.login_url}?next={url}'
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        self.assertRedirects(response, redirect_url)
+
+        new_data = {
+            'title': 'new_title',
+            'text': 'new_text',
+            'slug': 'new_slug',
+        }
+
+        response = self.auth_client.post(
+            'notes:edit',
+            new_data,
+        )
+
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        self.assertRedirects(response, redirect_url)
