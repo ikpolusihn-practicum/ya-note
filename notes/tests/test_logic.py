@@ -90,3 +90,41 @@ class TestNote(TestCase):
 
         notes_count = Note.objects.filter(author=self.user_1).count()
         self.assertEqual(notes_count, 1)
+
+    def update_note_by_author(self):
+        new_title = 'new_title'
+        new_text = 'new_text'
+
+        self.auth_client.force_login(self.user_1)
+        url = reverse('notes:edit', args=(self.notes.slug,))
+        current_response = self.auth_client.get(url)
+
+        current_form = current_response.context['form']
+        current_slug = current_form.initial.get('slug')
+
+        new_data = {
+            'title': new_title,
+            'text': new_text,
+            'slug': current_slug,
+        }
+        response = self.auth_client.post('notes:edit', new_data)
+
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        self.assertRedirects(response, 'notes:success')
+
+        updated_response = self.auth_client.get(url)
+        updated_form = updated_response.context['form']
+        updated_title = updated_form.initial.get('title')
+        updated_text = updated_form.initial.get('text')
+        updated_slug = updated_form.initial.get('slug')
+
+        self.assertEqual(
+            {updated_title, updated_text, updated_slug},
+            {new_title, new_text, current_slug},
+        )
+
+    def update_note_by_other_user(self):
+        ...
+
+    def update_note_by_unauthorized_user(self):
+        ...
