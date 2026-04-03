@@ -119,13 +119,13 @@ class TestLogic(TestCase):
         expected_slug = pytils.translit.slugify(self.new_note_2_data['title'])
         self.assertEqual(created_note.slug, expected_slug)
 
-    def test_other_user_cant_delete(self):
+    def test_other_user_cant_delete_note(self):
         self.client.force_login(self.authorised_user)
         url = reverse('notes:delete', args=(self.note.slug, ))
         response = self.client.post(url)
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
 
-    def test_other_user_cant_edit(self):
+    def test_other_user_cant_edit_note(self):
         self.client.force_login(self.authorised_user)
         url = reverse('notes:edit', args=(self.note.slug,))
         response = self.client.post(
@@ -133,3 +133,11 @@ class TestLogic(TestCase):
             data=self.new_note_2_data,
         )
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
+
+    def test_author_can_delete_note(self):
+        self.client.force_login(self.note_author)
+        url = reverse('notes:delete', args=(self.note.slug,))
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        self.assertRedirects(response, reverse('notes:success'))
+
