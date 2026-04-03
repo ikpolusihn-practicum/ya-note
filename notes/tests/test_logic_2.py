@@ -134,6 +134,12 @@ class TestLogic(TestCase):
         )
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
 
+        note_from_db = Note.objects.get(id=self.note.id)
+        self.assertEqual(
+            (self.note.title, self.note.text, self.note.slug),
+            (note_from_db.title, note_from_db.text, note_from_db.slug)
+        )
+
     def test_author_can_delete_note(self):
         self.client.force_login(self.note_author)
         url = reverse('notes:delete', args=(self.note.slug,))
@@ -141,3 +147,22 @@ class TestLogic(TestCase):
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
         self.assertRedirects(response, reverse('notes:success'))
 
+    def test_author_can_edit_note(self):
+        self.client.force_login(self.note_author)
+        url = reverse('notes:edit', args=(self.note.slug,))
+        response = self.client.post(
+            url,
+            data=self.new_note_2_data,
+        )
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        self.assertRedirects(response, reverse('notes:success'))
+
+        self.note.refresh_from_db()
+        self.assertEqual(
+            (self.note.title, self.note.text, self.note.slug),
+            (
+                self.new_note_2_data['title'],
+                self.new_note_2_data['text'],
+                self.new_note_2_data['slug']
+            )
+        )
