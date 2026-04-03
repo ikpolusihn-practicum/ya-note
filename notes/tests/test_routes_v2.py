@@ -32,22 +32,63 @@ class TestRoutes(TestCase):
             {
                 'url_name': 'notes:home',
                 'exp_result': HTTPStatus.OK,
+                'arguments': None,
             },
             {
                 'url_name': 'notes:list',
                 'exp_result': HTTPStatus.FOUND,
+                'arguments': None,
             },
             {
                 'url_name': 'notes:add',
                 'exp_result': HTTPStatus.FOUND,
+                'arguments': None,
+            },
+            {
+                'url_name': 'notes:success',
+                'exp_result': HTTPStatus.FOUND,
+                'arguments': None,
+            },
+            {
+                'url_name': 'users:login',
+                'exp_result': HTTPStatus.OK,
+                'arguments': None,
+            },
+            {
+                'url_name': 'users:signup',
+                'exp_result': HTTPStatus.OK,
+                'arguments': None,
+            },
+            {
+                'url_name': 'notes:detail',
+                'exp_result': HTTPStatus.FOUND,
+                'arguments': (self.notes.pk, ),
+            },
+            {
+                'url_name': 'notes:edit',
+                'exp_result': HTTPStatus.FOUND,
+                'arguments': (self.notes.pk,),
+            },
+            {
+                'url_name': 'notes:delete',
+                'exp_result': HTTPStatus.FOUND,
+                'arguments': (self.notes.pk,),
             },
         )
 
         for test_set in test_sets:
             url = test_set['url_name']
             exp_result = test_set['exp_result']
+            arguments = test_set['arguments']
 
             with self.subTest(name=url):
-                url = reverse(url)
+                url = reverse(url, args=arguments,)
                 response = self.client.get(url)
                 self.assertEqual(response.status_code, exp_result)
+
+                if url in (
+                    'notes:list', 'notes:add', 'notes:success',
+                    'notes:detail', 'notes:delete', 'notes:edit',
+                ):
+                    redirect_url = f'{self.login_url}?next={url}'
+                    self.assertRedirects(response, redirect_url)
