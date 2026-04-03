@@ -92,3 +92,48 @@ class TestRoutes(TestCase):
                 ):
                     redirect_url = f'{self.login_url}?next={url}'
                     self.assertRedirects(response, redirect_url)
+
+    def test_availability_authorized_user(self):
+        test_sets = (
+            {
+                'url_name': 'notes:list',
+                'exp_result': HTTPStatus.OK,
+                'arguments': None,
+            },
+            {
+                'url_name': 'notes:add',
+                'exp_result': HTTPStatus.OK,
+                'arguments': None,
+            },
+            {
+                'url_name': 'notes:success',
+                'exp_result': HTTPStatus.OK,
+                'arguments': None,
+            },
+            {
+                'url_name': 'notes:detail',
+                'exp_result': HTTPStatus.NOT_FOUND,
+                'arguments': (self.notes.pk,),
+            },
+            {
+                'url_name': 'notes:edit',
+                'exp_result': HTTPStatus.NOT_FOUND,
+                'arguments': (self.notes.pk,),
+            },
+            {
+                'url_name': 'notes:delete',
+                'exp_result': HTTPStatus.NOT_FOUND,
+                'arguments': (self.notes.pk,),
+            },
+        )
+
+        for test_set in test_sets:
+            url = test_set['url_name']
+            exp_result = test_set['exp_result']
+            arguments = test_set['arguments']
+
+            with self.subTest(name=url):
+                self.client.force_login(self.authorised_user)
+                url = reverse(url, args=arguments,)
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, exp_result)
