@@ -1,3 +1,5 @@
+import pytils
+
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.test import TestCase
@@ -91,4 +93,21 @@ class TestLogic(TestCase):
 
         notes_count = Note.objects.count()
         self.assertEqual(notes_count, 1)
+
+    def test_empty_slug_creation(self):
+        url = reverse('notes:add')
+        self.client.force_login(self.note_author)
+
+        self.new_note_1_data.pop('slug')
+        response = self.client.post(url, data=self.new_note_1_data)
+        self.assertRedirects(response, reverse('notes:success'))
+
+        notes_count = Note.objects.count()
+        self.assertEqual(notes_count, 1)
+
+        created_note = Note.objects.get()
+        expected_slug = pytils.translit.slugify(self.new_note_1_data['title'])
+        self.assertEqual(created_note.slug, expected_slug)
+
+
 
