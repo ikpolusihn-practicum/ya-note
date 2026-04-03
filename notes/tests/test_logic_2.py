@@ -125,3 +125,11 @@ class TestLogic(TestCase):
         response = self.client.post(url)
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
 
+    def test_other_user_cant_edit(self):
+        self.client.force_login(self.authorised_user)
+        url = reverse('notes:edit', args=(self.note.slug,))
+        response = self.client.post(
+            url,
+            data=self.new_note_2_data,
+        )
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
