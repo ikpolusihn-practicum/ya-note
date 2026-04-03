@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.test import TestCase
+from django.core.exceptions import ValidationError
 
 from notes.models import Note
 
@@ -72,4 +73,22 @@ class TestLogic(TestCase):
 
                     notes_count = Note.objects.count()
                     self.assertEqual(notes_count, 0)
+
+    def test_note_creation_with_the_same_slug(self):
+        url = reverse('notes:add')
+        self.client.force_login(self.note_author)
+
+        notes_count = Note.objects.count()
+        self.assertEqual(notes_count, 0)
+
+        self.client.post(url, data=self.new_note_1_data)
+
+        notes_count = Note.objects.count()
+        self.assertEqual(notes_count, 1)
+
+        self.client.post(url, data=self.new_note_1_data)
+        self.assertRaises(ValidationError)
+
+        notes_count = Note.objects.count()
+        self.assertEqual(notes_count, 1)
 
