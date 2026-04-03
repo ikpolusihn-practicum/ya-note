@@ -8,7 +8,7 @@ from notes.forms import NoteForm
 User = get_user_model()
 
 
-class TestRoutes(TestCase):
+class TestContent(TestCase):
 
     @classmethod
     def setUpTestData(cls):
