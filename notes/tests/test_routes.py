@@ -31,6 +31,10 @@ class TestRoutes(TestCase):
                 'exp_result': HTTPStatus.OK,
             },
             {
+                'url_name': 'notes:success',
+                'exp_result': HTTPStatus.OK,
+            },
+            {
                 'url_name': 'users:logout',
                 'exp_result': HTTPStatus.METHOD_NOT_ALLOWED,
             },
