@@ -1,77 +1,54 @@
-from django.test import TestCase, Client
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.test import TestCase
 
 from notes.models import Note
+from notes.forms import NoteForm
 
 User = get_user_model()
 
 
-class TestNotesList(TestCase):
+class TestContent(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.user_1 = User.objects.create(username='user_1')
-        cls.user_2 = User.objects.create(username='user_2')
-        cls.auth_client = Client()
+        cls.authorised_user = User.objects.create(username='authorised_user')
+        cls.note_author = User.objects.create(username='note_author')
+        cls.login_url = reverse('users:login')
 
-        cls.notes = Note.objects.create(
+        cls.note = Note.objects.create(
             title='title_note_1_user_1',
             text='text_note_1_user_1',
             slug='note_1_user_1',
-            author=cls.user_1,
+            author=cls.note_author,
         )
 
+    def test_note_in_list(self):
+        test_sets = (
+            ('authorised_user', self.authorised_user,),
+            ('note_author', self.note_author,),
+        )
 
-    def test_notes_display_user_with_notes(self):
-        self.auth_client.force_login(self.user_1)
+        for scenario, user in test_sets:
+            self.client.force_login(user)
+            url = reverse('notes:list')
+            response = self.client.get(url)
+            object_list = response.context['object_list']
 
-        response = self.auth_client.get(reverse('notes:list'))
-        object_list = response.context['object_list']
-        notes_count = object_list.count()
+            with self.subTest(name=scenario):
+                if scenario == 'note_author':
+                    self.assertIn(self.note, object_list)
+                elif scenario == 'authorised_user':
+                    self.assertNotIn(self.note, object_list)
 
-        self.assertEqual(notes_count, 1)
+    def test_form_in_page(self):
+        test_sets = (
+            ('add_note', 'notes:add', None),
+            ('edit_note', 'notes:edit', (self.note.slug, )),
+        )
 
-    def test_note_creation_user_with_notes(self):
-        data = {
-            'title': 'title_note_2_user_1',
-            'text': 'text_note_2_user_1',
-            'slug': 'note_2_user_1',
-        }
-
-        self.auth_client.force_login(self.user_1)
-        url = reverse('notes:add')
-        self.auth_client.post(url, data)
-
-        response = self.auth_client.get(reverse('notes:list'))
-        object_list = response.context['object_list']
-        notes_count = object_list.count()
-
-        self.assertEqual(notes_count, 2)
-
-    def test_notes_display_user_without_notes(self):
-        self.auth_client.force_login(self.user_2)
-
-        response = self.auth_client.get(reverse('notes:list'))
-        object_list = response.context['object_list']
-        notes_count = object_list.count()
-
-        self.assertEqual(notes_count, 0)
-
-    def test_note_creation_user_without_notes(self):
-        data = {
-            'title': 'title_note_2_user_1',
-            'text': 'text_note_2_user_1',
-            'slug': 'note_2_user_1',
-        }
-
-        self.auth_client.force_login(self.user_1)
-        url = reverse('notes:add')
-        self.auth_client.post(url, data)
-
-        self.auth_client.force_login(self.user_2)
-        response = self.auth_client.get(reverse('notes:list'))
-        object_list = response.context['object_list']
-        notes_count = object_list.count()
-
-        self.assertEqual(notes_count, 0)
+        for scenario, url, url_args in test_sets:
+            self.client.force_login(self.note_author)
+            url = reverse(url, args=url_args)
+            response = self.client.get(url)
+            self.assertIsInstance(response.context['form'], NoteForm)

@@ -1,8 +1,10 @@
 from http import HTTPStatus
 
-from django.test import TestCase, Client
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.test import TestCase
+
+from notes.models import Note
 
 User = get_user_model()
 
@@ -11,98 +13,155 @@ class TestRoutes(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.user = User.objects.create(username='some_user')
-        cls.auth_client = Client()
+        cls.authorised_user = User.objects.create(username='authorised_user')
+        cls.note_author = User.objects.create(username='note_author')
         cls.login_url = reverse('users:login')
 
-    def test_authorised_user(self):
+        cls.notes = Note.objects.create(
+            title='title_note_1_user_1',
+            text='text_note_1_user_1',
+            slug='note_1_user_1',
+            author=cls.note_author,
+        )
 
+
+    def test_availability_unauthorised_user(self):
         test_sets = (
             {
                 'url_name': 'notes:home',
                 'exp_result': HTTPStatus.OK,
+                'arguments': None,
             },
             {
                 'url_name': 'notes:list',
-                'exp_result': HTTPStatus.OK,
+                'exp_result': HTTPStatus.FOUND,
+                'arguments': None,
             },
             {
                 'url_name': 'notes:add',
-                'exp_result': HTTPStatus.OK,
+                'exp_result': HTTPStatus.FOUND,
+                'arguments': None,
             },
             {
                 'url_name': 'notes:success',
-                'exp_result': HTTPStatus.OK,
-            },
-            {
-                'url_name': 'users:logout',
-                'exp_result': HTTPStatus.METHOD_NOT_ALLOWED,
-            },
-        )
-
-        for test_set in test_sets:
-            url = test_set['url_name']
-            exp_result = test_set['exp_result']
-
-            with self.subTest(name=url):
-                self.auth_client.force_login(self.user)
-                url = reverse(url)
-                response = self.auth_client.get(url)
-                self.assertEqual(response.status_code, exp_result)
-
-    def test_unauthorized_user(self):
-        test_sets = (
-            {
-                'url_name': 'notes:home',
-                'exp_result': HTTPStatus.OK,
-            },
-            {
-                'url_name': 'notes:list',
                 'exp_result': HTTPStatus.FOUND,
-            },
-            {
-                'url_name': 'notes:add',
-                'exp_result': HTTPStatus.FOUND,
+                'arguments': None,
             },
             {
                 'url_name': 'users:login',
                 'exp_result': HTTPStatus.OK,
+                'arguments': None,
             },
             {
                 'url_name': 'users:signup',
                 'exp_result': HTTPStatus.OK,
+                'arguments': None,
             },
             {
-                'url_name': 'users:logout',
-                'exp_result': HTTPStatus.METHOD_NOT_ALLOWED,
+                'url_name': 'notes:detail',
+                'exp_result': HTTPStatus.FOUND,
+                'arguments': (self.notes.pk, ),
+            },
+            {
+                'url_name': 'notes:edit',
+                'exp_result': HTTPStatus.FOUND,
+                'arguments': (self.notes.pk,),
+            },
+            {
+                'url_name': 'notes:delete',
+                'exp_result': HTTPStatus.FOUND,
+                'arguments': (self.notes.pk,),
             },
         )
 
         for test_set in test_sets:
             url = test_set['url_name']
             exp_result = test_set['exp_result']
+            arguments = test_set['arguments']
 
             with self.subTest(name=url):
-                url = reverse(url)
+                url = reverse(url, args=arguments,)
                 response = self.client.get(url)
                 self.assertEqual(response.status_code, exp_result)
 
-    def test_unauthorized_user_redirect(self):
+                if url in (
+                    'notes:list', 'notes:add', 'notes:success',
+                    'notes:detail', 'notes:delete', 'notes:edit',
+                ):
+                    redirect_url = f'{self.login_url}?next={url}'
+                    self.assertRedirects(response, redirect_url)
 
+    def test_availability_authorized_user(self):
         test_sets = (
             {
                 'url_name': 'notes:list',
+                'exp_result': HTTPStatus.OK,
+                'arguments': None,
             },
             {
                 'url_name': 'notes:add',
+                'exp_result': HTTPStatus.OK,
+                'arguments': None,
+            },
+            {
+                'url_name': 'notes:success',
+                'exp_result': HTTPStatus.OK,
+                'arguments': None,
+            },
+            {
+                'url_name': 'notes:detail',
+                'exp_result': HTTPStatus.NOT_FOUND,
+                'arguments': (self.notes.slug,),
+            },
+            {
+                'url_name': 'notes:edit',
+                'exp_result': HTTPStatus.NOT_FOUND,
+                'arguments': (self.notes.slug,),
+            },
+            {
+                'url_name': 'notes:delete',
+                'exp_result': HTTPStatus.NOT_FOUND,
+                'arguments': (self.notes.slug,),
             },
         )
 
         for test_set in test_sets:
             url = test_set['url_name']
+            exp_result = test_set['exp_result']
+            arguments = test_set['arguments']
 
             with self.subTest(name=url):
-                url = reverse(url)
+                self.client.force_login(self.authorised_user)
+                url = reverse(url, args=arguments,)
                 response = self.client.get(url)
-                redirect_url = f'{self.login_url}?next={url}'
-                self.assertRedirects(response, redirect_url)
+                self.assertEqual(response.status_code, exp_result)
+
+    def test_availability_note_author(self):
+        test_sets = (
+            {
+                'url_name': 'notes:detail',
+                'exp_result': HTTPStatus.OK,
+                'arguments': (self.notes.slug,),
+            },
+            {
+                'url_name': 'notes:edit',
+                'exp_result': HTTPStatus.OK,
+                'arguments': (self.notes.slug,),
+            },
+            {
+                'url_name': 'notes:delete',
+                'exp_result': HTTPStatus.OK,
+                'arguments': (self.notes.slug,),
+            },
+        )
+
+        for test_set in test_sets:
+            url = test_set['url_name']
+            exp_result = test_set['exp_result']
+            arguments = test_set['arguments']
+
+            with self.subTest(name=url):
+                self.client.force_login(self.note_author)
+                url = reverse(url, args=arguments,)
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, exp_result)

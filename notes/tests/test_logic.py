@@ -1,166 +1,168 @@
+import pytils
 from http import HTTPStatus
 
-from django.test import TestCase, Client
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.test import TestCase, Client
+from django.core.exceptions import ValidationError
 
 from notes.models import Note
 
 User = get_user_model()
 
-class TestNote(TestCase):
+
+class TestLogic(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.user_1 = User.objects.create(username='user_1')
-        cls.user_2 = User.objects.create(username='user_2')
-        cls.auth_client = Client()
-
-        cls.notes = Note.objects.create(
-            title='title_note_1_user_1',
-            text='text_note_1_user_1',
-            slug='note_1_user_1',
-            author=cls.user_1,
-        )
-
+        cls.authorised_user = User.objects.create(username='authorised_user')
+        cls.note_author = User.objects.create(username='note_author')
         cls.login_url = reverse('users:login')
 
-    def test_display_note_by_author(self):
-        self.auth_client.force_login(self.user_1)
-        url = reverse('notes:detail', args=(self.notes.slug,))
-        response = self.auth_client.get(url)
+        cls.note = Note.objects.create(
+            title='title_note_1',
+            text='text_note_1',
+            slug='note_1',
+            author=cls.note_author,
+        )
 
-        self.assertEqual(response.status_code, HTTPStatus.OK)
-
-    def test_display_note_by_other_user(self):
-        self.auth_client.force_login(self.user_2)
-        url = reverse('notes:detail', args=(self.notes.slug,))
-        response = self.auth_client.get(url)
-
-        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
-
-    def test_display_note_by_unauthorized_user(self):
-        url = reverse('notes:detail', args=(self.notes.slug,))
-        response = self.auth_client.get(url)
-
-        self.assertEqual(response.status_code, HTTPStatus.FOUND)
-
-        redirect_url = f'{self.login_url}?next={url}'
-        self.assertRedirects(response, redirect_url)
-
-    def test_delete_note_by_author(self):
-        self.auth_client.force_login(self.user_1)
-
-        notes_count = Note.objects.filter(author=self.user_1).count()
-        self.assertEqual(notes_count, 1)
-
-        url = reverse('notes:delete', args=(self.notes.slug,))
-        response = self.auth_client.post(url)
-        self.assertEqual(response.status_code, HTTPStatus.FOUND)
-
-        redirect_url = reverse('notes:success')
-        self.assertRedirects(response, redirect_url)
-
-        notes_count = Note.objects.filter(author=self.user_1).count()
-        self.assertEqual(notes_count, 0)
-
-    def test_delete_note_by_other_user(self):
-        self.auth_client.force_login(self.user_2)
-
-        notes_count = Note.objects.filter(author=self.user_1).count()
-        self.assertEqual(notes_count, 1)
-
-        url = reverse('notes:delete', args=(self.notes.slug,))
-        response = self.auth_client.post(url)
-        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
-
-        notes_count = Note.objects.filter(author=self.user_1).count()
-        self.assertEqual(notes_count, 1)
-
-    def test_delete_note_by_unauthorised_user(self):
-        notes_count = Note.objects.filter(author=self.user_1).count()
-        self.assertEqual(notes_count, 1)
-
-        url = reverse('notes:delete', args=(self.notes.slug,))
-        response = self.auth_client.post(url)
-        self.assertEqual(response.status_code, HTTPStatus.FOUND)
-
-        redirect_url = f'{self.login_url}?next={url}'
-        self.assertRedirects(response, redirect_url)
-
-        notes_count = Note.objects.filter(author=self.user_1).count()
-        self.assertEqual(notes_count, 1)
-
-    def update_note_by_author(self):
-        new_title = 'new_title'
-        new_text = 'new_text'
-
-        self.auth_client.force_login(self.user_1)
-        url = reverse('notes:edit', args=(self.notes.slug,))
-        current_response = self.auth_client.get(url)
-
-        current_form = current_response.context['form']
-        current_slug = current_form.initial.get('slug')
-
-        new_data = {
-            'title': new_title,
-            'text': new_text,
-            'slug': current_slug,
+        cls.new_note_2_data = {
+            'title': 'title_note_2',
+            'text': 'text_note_2',
+            'slug': 'note_2',
         }
-        response = self.auth_client.post('notes:edit', new_data)
 
-        self.assertEqual(response.status_code, HTTPStatus.FOUND)
-        self.assertRedirects(response, 'notes:success')
+    def test_note_creation(self):
 
-        updated_response = self.auth_client.get(url)
-        updated_form = updated_response.context['form']
-        updated_title = updated_form.initial.get('title')
-        updated_text = updated_form.initial.get('text')
-        updated_slug = updated_form.initial.get('slug')
+        test_sets = (
+            ('authorized_user', ),
+            ('unauthorized_user', )
+        )
 
+        for scenario in test_sets:
+
+            url = reverse('notes:add')
+
+            with self.subTest(name=scenario):
+                if scenario == 'authorized_user':
+                    self.client.force_login(self.note_author)
+
+                    notes_count = Note.objects.count()
+                    self.assertEqual(notes_count, 1)
+
+                    response = self.client.post(url, data=self.new_note_2_data)
+                    self.assertRedirects(response, reverse('notes:success'))
+
+                    notes_count = Note.objects.count()
+                    self.assertEqual(notes_count, 2)
+
+                    created_note = Note.objects.get()
+                    self.assertEqual(
+                        (
+                            created_note['title'],
+                            created_note['text'],
+                            created_note['slug']
+                        ),
+                        (
+                            self.new_note_2_data['title'],
+                            self.new_note_2_data['text'],
+                            self.new_note_2_data['slug'],
+                        )
+                    )
+
+                elif scenario == 'unauthorized_user':
+
+                    notes_count = Note.objects.count()
+                    self.assertEqual(notes_count, 1)
+
+                    self.client.post(url, data=self.new_note_2_data)
+
+                    response = self.client.post(url, data=self.new_note_2_data)
+                    redirect_url = f'{self.login_url}?next={url}'
+                    self.assertRedirects(response, redirect_url)
+
+                    notes_count = Note.objects.count()
+                    self.assertEqual(notes_count, 1)
+
+    def test_note_creation_with_the_same_slug(self):
+        url = reverse('notes:add')
+        self.client.force_login(self.note_author)
+
+        notes_count = Note.objects.count()
+        self.assertEqual(notes_count, 1)
+
+        self.client.post(
+            url,
+            data={
+                'title': self.note.title,
+                'text': self.note.text,
+                'slug': self.note.slug,
+            }
+        )
+        self.assertRaises(ValidationError)
+
+        notes_count = Note.objects.count()
+        self.assertEqual(notes_count, 1)
+
+    def test_empty_slug_creation(self):
+        url = reverse('notes:add')
+        self.client.force_login(self.note_author)
+
+        self.new_note_2_data.pop('slug')
+        response = self.client.post(url, data=self.new_note_2_data)
+        self.assertRedirects(response, reverse('notes:success'))
+
+        notes_count = Note.objects.count()
+        self.assertEqual(notes_count, 2)
+
+        created_note = Note.objects.get(id=2)
+        expected_slug = pytils.translit.slugify(self.new_note_2_data['title'])
+        self.assertEqual(created_note.slug, expected_slug)
+
+    def test_other_user_cant_delete_note(self):
+        self.client.force_login(self.authorised_user)
+        url = reverse('notes:delete', args=(self.note.slug, ))
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
+
+    def test_other_user_cant_edit_note(self):
+        self.client.force_login(self.authorised_user)
+        url = reverse('notes:edit', args=(self.note.slug,))
+        response = self.client.post(
+            url,
+            data=self.new_note_2_data,
+        )
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
+
+        note_from_db = Note.objects.get(id=self.note.id)
         self.assertEqual(
-            {updated_title, updated_text, updated_slug},
-            {new_title, new_text, current_slug},
+            (self.note.title, self.note.text, self.note.slug),
+            (note_from_db.title, note_from_db.text, note_from_db.slug)
         )
 
-    def update_note_by_other_user(self):
-        self.auth_client.force_login(self.user_2)
-        url = reverse('notes:edit', args=(self.notes.slug,))
-        response = self.auth_client.get(url)
-
-        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN)
-
-        new_data = {
-            'title': 'new_title',
-            'text': 'new_text',
-            'slug': 'new_slug',
-        }
-
-        response = self.auth_client.post(
-            'notes:edit',
-            new_data,
-        )
-
-        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN)
-
-    def update_note_by_unauthorized_user(self):
-        url = reverse('notes:edit', args=(self.notes.slug,))
-        response = self.auth_client.get(url)
-
-        redirect_url = f'{self.login_url}?next={url}'
+    def test_author_can_delete_note(self):
+        self.client.force_login(self.note_author)
+        url = reverse('notes:delete', args=(self.note.slug,))
+        response = self.client.post(url)
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
-        self.assertRedirects(response, redirect_url)
+        self.assertRedirects(response, reverse('notes:success'))
 
-        new_data = {
-            'title': 'new_title',
-            'text': 'new_text',
-            'slug': 'new_slug',
-        }
-
-        response = self.auth_client.post(
-            'notes:edit',
-            new_data,
+    def test_author_can_edit_note(self):
+        self.client.force_login(self.note_author)
+        url = reverse('notes:edit', args=(self.note.slug,))
+        response = self.client.post(
+            url,
+            data=self.new_note_2_data,
         )
-
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
-        self.assertRedirects(response, redirect_url)
+        self.assertRedirects(response, reverse('notes:success'))
+
+        self.note.refresh_from_db()
+        self.assertEqual(
+            (self.note.title, self.note.text, self.note.slug),
+            (
+                self.new_note_2_data['title'],
+                self.new_note_2_data['text'],
+                self.new_note_2_data['slug']
+            )
+        )
