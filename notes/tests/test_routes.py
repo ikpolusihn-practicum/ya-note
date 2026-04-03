@@ -24,7 +24,6 @@ class TestRoutes(TestCase):
             author=cls.note_author,
         )
 
-
     def test_availability_unauthorised_user(self):
         test_sets = (
             {

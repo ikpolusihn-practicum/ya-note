@@ -3,7 +3,7 @@ from http import HTTPStatus
 
 from django.contrib.auth import get_user_model
 from django.urls import reverse
-from django.test import TestCase, Client
+from django.test import TestCase
 from django.core.exceptions import ValidationError
 
 from notes.models import Note
